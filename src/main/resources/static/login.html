@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forest Monitor - Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a2f1a 0%, #2d5a27 50%, #1a3a1a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 40px;
+      width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo h1 { color: #2d5a27; font-size: 1.8rem; }
+    .logo p { color: #666; font-size: 0.9rem; margin-top: 4px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 6px; color: #333; font-weight: 500; }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: #2d5a27; }
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #2d5a27, #4a8a3f);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+    .error-msg {
+      background: #fee;
+      color: #c00;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: none;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <h1>&#127795; Forest Monitor</h1>
+      <p>Forest Fire & Environmental Monitoring System</p>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter password" required>
+      </div>
+      <button type="submit" class="btn-login">Sign In</button>
+    </form>
+  </div>
+  <script>
+    // If already logged in, redirect to dashboard
+    const existingToken = localStorage.getItem('forestToken');
+    if (existingToken) {
+      fetch('/api/users/me', {
+        headers: { 'Authorization': 'Bearer ' + existingToken }
+      }).then(r => {
+        if (r.ok) window.location.href = '/dashboard.html';
+        else localStorage.removeItem('forestToken');
+      }).catch(() => localStorage.removeItem('forestToken'));
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!resp.ok) {
+          errorMsg.textContent = 'Invalid username or password.';
+          errorMsg.style.display = 'block';
+          return;
+        }
+        const data = await resp.json();
+        localStorage.setItem('forestToken', data.token);
+        localStorage.setItem('forestUser', data.username);
+        localStorage.setItem('forestRole', data.role);
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errorMsg.textContent = 'Connection error. Please try again.';
+        errorMsg.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
