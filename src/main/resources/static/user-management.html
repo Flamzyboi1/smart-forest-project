@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forest Monitor - User Management</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#1a3a1a,#2d5a27); color:white; padding:20px 0; flex-shrink:0; position:fixed; height:100vh; overflow-y:auto; }
+    .sidebar .brand { padding:0 20px 20px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar .brand h2 { font-size:1.1rem; }
+    .sidebar nav { padding:16px 0; }
+    .sidebar nav a { display:block; padding:12px 20px; color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.9rem; transition:background 0.2s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background:rgba(255,255,255,0.15); color:white; }
+    .sidebar .logout { padding:20px; }
+    .sidebar .logout button { width:100%; padding:10px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:6px; cursor:pointer; }
+    .main { margin-left:220px; flex:1; padding:24px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .topbar h1 { color:#1a3a1a; font-size:1.5rem; }
+    .btn { padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:600; }
+    .btn-primary { background:#2d5a27; color:white; }
+    .btn-danger { background:#e74c3c; color:white; }
+    .btn-secondary { background:#6c757d; color:white; }
+    .btn:hover { opacity:0.85; }
+    .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { color:#1a3a1a; margin-bottom:16px; font-size:1.1rem; border-bottom:2px solid #e8f5e9; padding-bottom:8px; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px; background:#f8f9fa; color:#555; font-size:0.85rem; border-bottom:2px solid #e0e0e0; }
+    td { padding:10px; border-bottom:1px solid #f0f0f0; font-size:0.9rem; }
+    tr:hover { background:#f8fdf8; }
+    .role-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; }
+    .role-SUPERADMIN { background:#fde8e8; color:#c0392b; }
+    .role-ADMIN { background:#fef3cd; color:#856404; }
+    .role-USER { background:#d4edda; color:#155724; }
+    .actions { display:flex; gap:6px; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal.open { display:flex; }
+    .modal-box { background:white; border-radius:12px; padding:28px; width:420px; max-width:90vw; }
+    .modal-box h3 { margin-bottom:20px; color:#1a3a1a; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; margin-bottom:6px; font-size:0.9rem; font-weight:500; }
+    .form-group input, .form-group select { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; }
+    .form-group small { color:#888; font-size:0.8rem; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .access-denied { text-align:center; padding:60px; color:#e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand"><h2>&#127795; Forest Monitor</h2></div>
+    <nav>
+      <a href="dashboard.html">&#128202; Dashboard</a>
+      <a href="zones.html">&#127966; Forest Zones</a>
+      <a href="sensors.html">&#128268; Sensors</a>
+      <a href="alerts.html">&#128680; Alerts</a>
+      <a href="user-management.html" class="active">&#128100; Users</a>
+    </nav>
+    <div class="logout"><button onclick="logout()">&#8594; Logout</button></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>&#128100; User Management</h1>
+      <button class="btn btn-primary" id="btnAdd" onclick="openModal()">+ Add User</button>
+    </div>
+    <div class="card" id="mainCard">
+      <h2>All Users</h2>
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody id="usersTable"><tr><td colspan="4" style="text-align:center;color:#aaa">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal" id="userModal">
+    <div class="modal-box">
+      <h3 id="modalTitle">Add User</h3>
+      <div class="form-group"><label>Username</label><input id="fUsername" placeholder="username"></div>
+      <div class="form-group"><label>Email</label><input id="fEmail" type="email" placeholder="user@forest.lv"></div>
+      <div class="form-group"><label>Role</label>
+        <select id="fRole">
+          <option value="USER">USER</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="SUPERADMIN" id="saOption">SUPERADMIN</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Password <span id="pwNote"></span></label>
+        <input id="fPassword" type="password" placeholder="Enter password">
+        <small id="pwHint"></small>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveUser()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('forestToken');
+    const role = localStorage.getItem('forestRole');
+    const currentUser = localStorage.getItem('forestUser');
+    if (!token) window.location.href = '/login.html';
+    if (role !== 'ADMIN' && role !== 'SUPERADMIN') {
+      document.getElementById('mainCard').innerHTML = '<div class="access-denied"><h2>Access Denied</h2><p>You do not have permission to view this page.</p></div>';
+      document.getElementById('btnAdd').style.display = 'none';
+    }
+    // Only SUPERADMIN can add SUPERADMIN users
+    if (role !== 'SUPERADMIN') document.getElementById('saOption').style.display = 'none';
+
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    let editId = null;
+    let users = [];
+
+    async function loadUsers() {
+      const res = await fetch('/api/users', {headers});
+      users = await res.json();
+      const tb = document.getElementById('usersTable');
+      if (!users.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa">No users found.</td></tr>'; return; }
+      tb.innerHTML = users.map(u => `<tr>
+        <td><strong>${u.username}</strong> ${u.username === currentUser ? '<small style="color:#888">(you)</small>' : ''}</td>
+        <td>${u.email || '-'}</td>
+        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+        <td><div class="actions">
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="editUser(${u.id})">Edit</button>
+          ${role === 'SUPERADMIN' && u.username !== currentUser ?
+            `<button class="btn btn-danger" style="padding:6px 12px;font-size:0.8rem" onclick="deleteUser(${u.id})">Delete</button>` : ''}
+        </div></td>
+      </tr>`).join('');
+    }
+
+    function openModal(id) {
+      editId = id || null;
+      if (id) {
+        const u = users.find(u => u.id === id);
+        document.getElementById('modalTitle').textContent = 'Edit User';
+        document.getElementById('fUsername').value = u.username;
+        document.getElementById('fEmail').value = u.email || '';
+        document.getElementById('fRole').value = u.role;
+        document.getElementById('fPassword').value = '';
+        document.getElementById('pwHint').textContent = 'Leave blank to keep current password';
+      } else {
+        document.getElementById('modalTitle').textContent = 'Add User';
+        document.getElementById('fUsername').value = '';
+        document.getElementById('fEmail').value = '';
+        document.getElementById('fRole').value = 'USER';
+        document.getElementById('fPassword').value = '';
+        document.getElementById('pwHint').textContent = '';
+      }
+      document.getElementById('userModal').classList.add('open');
+    }
+
+    function editUser(id) { openModal(id); }
+    function closeModal() { document.getElementById('userModal').classList.remove('open'); }
+
+    async function saveUser() {
+      const body = {
+        username: document.getElementById('fUsername').value,
+        email: document.getElementById('fEmail').value,
+        role: document.getElementById('fRole').value,
+        password: document.getElementById('fPassword').value
+      };
+      if (editId) {
+        await fetch(`/api/users/${editId}`, {method:'PUT', headers, body: JSON.stringify(body)});
+      } else {
+        await fetch('/api/users', {method:'POST', headers, body: JSON.stringify(body)});
+      }
+      closeModal();
+      loadUsers();
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Delete this user permanently?')) return;
+      await fetch(`/api/users/${id}`, {method:'DELETE', headers});
+      loadUsers();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+    if (role === 'ADMIN' || role === 'SUPERADMIN') loadUsers();
+  </script>
+</body>
+</html>
