@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forest Monitor - Zones</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#1a3a1a,#2d5a27); color:white; padding:20px 0; flex-shrink:0; position:fixed; height:100vh; overflow-y:auto; }
+    .sidebar .brand { padding:0 20px 20px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar .brand h2 { font-size:1.1rem; }
+    .sidebar nav { padding:16px 0; }
+    .sidebar nav a { display:block; padding:12px 20px; color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.9rem; transition:background 0.2s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background:rgba(255,255,255,0.15); color:white; }
+    .sidebar .logout { padding:20px; }
+    .sidebar .logout button { width:100%; padding:10px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:6px; cursor:pointer; }
+    .main { margin-left:220px; flex:1; padding:24px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .topbar h1 { color:#1a3a1a; font-size:1.5rem; }
+    .btn { padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:600; }
+    .btn-primary { background:#2d5a27; color:white; }
+    .btn-danger { background:#e74c3c; color:white; }
+    .btn-secondary { background:#6c757d; color:white; }
+    .btn:hover { opacity:0.85; }
+    .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
+    .card h2 { color:#1a3a1a; margin-bottom:16px; font-size:1.1rem; border-bottom:2px solid #e8f5e9; padding-bottom:8px; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px; background:#f8f9fa; color:#555; font-size:0.85rem; border-bottom:2px solid #e0e0e0; }
+    td { padding:10px; border-bottom:1px solid #f0f0f0; font-size:0.9rem; }
+    tr:hover { background:#f8fdf8; }
+    .actions { display:flex; gap:6px; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal.open { display:flex; }
+    .modal-box { background:white; border-radius:12px; padding:28px; width:420px; max-width:90vw; }
+    .modal-box h3 { margin-bottom:20px; color:#1a3a1a; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; margin-bottom:6px; font-size:0.9rem; color:#444; font-weight:500; }
+    .form-group input, .form-group select { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .forest-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:600; background:#e8f5e9; color:#2d5a27; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand"><h2>&#127795; Forest Monitor</h2></div>
+    <nav>
+      <a href="dashboard.html">&#128202; Dashboard</a>
+      <a href="zones.html" class="active">&#127966; Forest Zones</a>
+      <a href="sensors.html">&#128268; Sensors</a>
+      <a href="alerts.html">&#128680; Alerts</a>
+      <a href="user-management.html" id="navUsers" style="display:none">&#128100; Users</a>
+    </nav>
+    <div class="logout"><button onclick="logout()">&#8594; Logout</button></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>&#127966; Forest Zones</h1>
+      <button class="btn btn-primary" id="btnAdd" onclick="openModal()">+ Add Zone</button>
+    </div>
+    <div class="card">
+      <h2>All Zones</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Area (ha)</th><th id="actHead"></th></tr></thead>
+        <tbody id="zonesTable"><tr><td colspan="5" style="text-align:center;color:#aaa">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal" id="zoneModal">
+    <div class="modal-box">
+      <h3 id="modalTitle">Add Forest Zone</h3>
+      <div class="form-group"><label>Zone Name</label><input id="fName" placeholder="e.g. Northern Pine Forest"></div>
+      <div class="form-group"><label>Forest Type</label>
+        <select id="fType"><option>Pine</option><option>Mixed</option><option>Oak</option><option>Spruce</option><option>Birch</option></select>
+      </div>
+      <div class="form-group"><label>Location (lat, lon)</label><input id="fLocation" placeholder="57.38, 21.56"></div>
+      <div class="form-group"><label>Area (hectares)</label><input id="fArea" type="number" step="0.1"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveZone()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('forestToken');
+    const role = localStorage.getItem('forestRole');
+    if (!token) window.location.href = '/login.html';
+    if (role === 'ADMIN' || role === 'SUPERADMIN') document.getElementById('navUsers').style.display = 'block';
+    if (role !== 'ADMIN' && role !== 'SUPERADMIN') { document.getElementById('btnAdd').style.display='none'; }
+    if (role === 'ADMIN' || role === 'SUPERADMIN') document.getElementById('actHead').textContent = 'Actions';
+
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    let editId = null;
+    let zones = [];
+
+    async function loadZones() {
+      const res = await fetch('/api/forest/zones', {headers});
+      zones = await res.json();
+      const tb = document.getElementById('zonesTable');
+      if (!zones.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa">No zones found.</td></tr>'; return; }
+      tb.innerHTML = zones.map(z => `<tr>
+        <td><strong>${z.name}</strong></td>
+        <td><span class="forest-badge">${z.forestType}</span></td>
+        <td>${z.location || '-'}</td>
+        <td>${z.areaHectares || '-'}</td>
+        <td>${(role==='ADMIN'||role==='SUPERADMIN') ? `<div class="actions">
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.8rem" onclick="editZone(${z.id})">Edit</button>
+          ${role==='SUPERADMIN' ? `<button class="btn btn-danger" style="padding:6px 12px;font-size:0.8rem" onclick="deleteZone(${z.id})">Delete</button>` : ''}
+        </div>` : ''}</td>
+      </tr>`).join('');
+    }
+
+    function openModal(id) {
+      editId = id || null;
+      document.getElementById('modalTitle').textContent = id ? 'Edit Zone' : 'Add Zone';
+      if (id) {
+        const z = zones.find(z => z.id === id);
+        document.getElementById('fName').value = z.name;
+        document.getElementById('fType').value = z.forestType;
+        document.getElementById('fLocation').value = z.location || '';
+        document.getElementById('fArea').value = z.areaHectares || '';
+      } else {
+        document.getElementById('fName').value = '';
+        document.getElementById('fLocation').value = '';
+        document.getElementById('fArea').value = '';
+      }
+      document.getElementById('zoneModal').classList.add('open');
+    }
+
+    function editZone(id) { openModal(id); }
+    function closeModal() { document.getElementById('zoneModal').classList.remove('open'); }
+
+    async function saveZone() {
+      const body = { name: document.getElementById('fName').value, forestType: document.getElementById('fType').value, location: document.getElementById('fLocation').value, areaHectares: parseFloat(document.getElementById('fArea').value) };
+      const url = editId ? `/api/forest/zones/${editId}` : '/api/forest/zones';
+      const method = editId ? 'PUT' : 'POST';
+      await fetch(url, {method, headers, body: JSON.stringify(body)});
+      closeModal();
+      loadZones();
+    }
+
+    async function deleteZone(id) {
+      if (!confirm('Delete this zone?')) return;
+      await fetch(`/api/forest/zones/${id}`, {method:'DELETE', headers});
+      loadZones();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+    loadZones();
+  </script>
+</body>
+</html>
