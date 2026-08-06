@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forest Monitor - Alerts</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#1a3a1a,#2d5a27); color:white; padding:20px 0; flex-shrink:0; position:fixed; height:100vh; overflow-y:auto; }
+    .sidebar .brand { padding:0 20px 20px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar .brand h2 { font-size:1.1rem; }
+    .sidebar nav { padding:16px 0; }
+    .sidebar nav a { display:block; padding:12px 20px; color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.9rem; transition:background 0.2s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background:rgba(255,255,255,0.15); color:white; }
+    .sidebar .logout { padding:20px; }
+    .sidebar .logout button { width:100%; padding:10px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:6px; cursor:pointer; }
+    .main { margin-left:220px; flex:1; padding:24px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .topbar h1 { color:#1a3a1a; font-size:1.5rem; }
+    .filters { display:flex; gap:10px; align-items:center; }
+    .btn { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; }
+    .btn-primary { background:#2d5a27; color:white; }
+    .btn-success { background:#27ae60; color:white; }
+    .btn-danger { background:#e74c3c; color:white; }
+    .btn-secondary { background:#6c757d; color:white; }
+    .btn:hover { opacity:0.85; }
+    .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { color:#1a3a1a; margin-bottom:16px; font-size:1.1rem; border-bottom:2px solid #e8f5e9; padding-bottom:8px; }
+    .alert-card {
+      border-radius:10px; padding:16px; margin-bottom:12px;
+      border-left:4px solid #e74c3c; background:#fff5f5;
+      display:flex; justify-content:space-between; align-items:flex-start;
+    }
+    .alert-card.resolved { border-color:#27ae60; background:#f0fff4; opacity:0.75; }
+    .alert-info h4 { color:#1a3a1a; margin-bottom:4px; font-size:0.95rem; }
+    .alert-meta { font-size:0.8rem; color:#666; margin-top:4px; }
+    .alert-meta span { margin-right:12px; }
+    .alert-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; margin-bottom:6px; }
+    .badge-active { background:#fee; color:#c00; }
+    .badge-resolved { background:#d4edda; color:#155724; }
+    .alert-actions { display:flex; gap:6px; flex-shrink:0; margin-left:12px; }
+    .empty-state { text-align:center; padding:40px; color:#aaa; }
+    select { padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; background:white; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand"><h2>&#127795; Forest Monitor</h2></div>
+    <nav>
+      <a href="dashboard.html">&#128202; Dashboard</a>
+      <a href="zones.html">&#127966; Forest Zones</a>
+      <a href="sensors.html">&#128268; Sensors</a>
+      <a href="alerts.html" class="active">&#128680; Alerts</a>
+      <a href="user-management.html" id="navUsers" style="display:none">&#128100; Users</a>
+    </nav>
+    <div class="logout"><button onclick="logout()">&#8594; Logout</button></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>&#128680; Alerts</h1>
+      <div class="filters">
+        <select id="filterStatus" onchange="loadAlerts()">
+          <option value="all">All Alerts</option>
+          <option value="unresolved">Active Only</option>
+          <option value="resolved">Resolved Only</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Alert Log</h2>
+      <div id="alertsContainer"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+  <script>
+    const token = localStorage.getItem('forestToken');
+    const role = localStorage.getItem('forestRole');
+    if (!token) window.location.href = '/login.html';
+    if (role === 'ADMIN' || role === 'SUPERADMIN') document.getElementById('navUsers').style.display = 'block';
+
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    async function loadAlerts() {
+      const filter = document.getElementById('filterStatus').value;
+      const url = filter === 'unresolved' ? '/api/forest/alerts/unresolved' : '/api/forest/alerts';
+      const res = await fetch(url, {headers});
+      let alerts = await res.json();
+      if (filter === 'resolved') alerts = alerts.filter(a => a.resolved);
+      else if (filter === 'unresolved') alerts = alerts.filter(a => !a.resolved);
+
+      const container = document.getElementById('alertsContainer');
+      if (!alerts.length) {
+        container.innerHTML = '<div class="empty-state">No alerts found.</div>';
+        return;
+      }
+      container.innerHTML = alerts.map(a => `
+        <div class="alert-card ${a.resolved ? 'resolved' : ''}">
+          <div class="alert-info">
+            <span class="alert-badge ${a.resolved ? 'badge-resolved' : 'badge-active'}">${a.resolved ? 'Resolved' : 'Active'}</span>
+            <h4>${a.message}</h4>
+            <div class="alert-meta">
+              <span>&#127966; ${a.zone?.name || 'Unknown Zone'}</span>
+              <span>&#128268; ${a.sensor?.name || 'Unknown Sensor'}</span>
+              <span>&#128337; ${new Date(a.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="alert-actions">
+            ${!a.resolved && (role === 'ADMIN' || role === 'SUPERADMIN') ?
+              `<button class="btn btn-success" onclick="resolveAlert(${a.id})">Resolve</button>` : ''}
+            ${role === 'SUPERADMIN' ?
+              `<button class="btn btn-danger" onclick="deleteAlert(${a.id})">Delete</button>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    async function resolveAlert(id) {
+      await fetch(`/api/forest/alerts/${id}/resolve`, {method:'PUT', headers});
+      loadAlerts();
+    }
+
+    async function deleteAlert(id) {
+      if (!confirm('Delete this alert permanently?')) return;
+      await fetch(`/api/forest/alerts/${id}`, {method:'DELETE', headers});
+      loadAlerts();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+    loadAlerts();
+  </script>
+</body>
+</html>
