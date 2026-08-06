@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forest Monitor - Sensors</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#1a3a1a,#2d5a27); color:white; padding:20px 0; flex-shrink:0; position:fixed; height:100vh; overflow-y:auto; }
+    .sidebar .brand { padding:0 20px 20px; border-bottom:1px solid rgba(255,255,255,0.2); }
+    .sidebar .brand h2 { font-size:1.1rem; }
+    .sidebar nav { padding:16px 0; }
+    .sidebar nav a { display:block; padding:12px 20px; color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.9rem; transition:background 0.2s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background:rgba(255,255,255,0.15); color:white; }
+    .sidebar .logout { padding:20px; }
+    .sidebar .logout button { width:100%; padding:10px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:6px; cursor:pointer; }
+    .main { margin-left:220px; flex:1; padding:24px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .topbar h1 { color:#1a3a1a; font-size:1.5rem; }
+    .btn { padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:600; }
+    .btn-primary { background:#2d5a27; color:white; }
+    .btn-danger { background:#e74c3c; color:white; }
+    .btn-secondary { background:#6c757d; color:white; }
+    .btn:hover { opacity:0.85; }
+    .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
+    .card h2 { color:#1a3a1a; margin-bottom:16px; font-size:1.1rem; border-bottom:2px solid #e8f5e9; padding-bottom:8px; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px; background:#f8f9fa; color:#555; font-size:0.85rem; border-bottom:2px solid #e0e0e0; }
+    td { padding:10px; border-bottom:1px solid #f0f0f0; font-size:0.9rem; }
+    tr:hover { background:#f8fdf8; }
+    .status-on { color:#27ae60; font-weight:600; }
+    .status-off { color:#e74c3c; font-weight:600; }
+    .actions { display:flex; gap:6px; }
+    .reading-detail { background:#f8fdf8; padding:12px; border-radius:8px; margin-top:8px; font-size:0.85rem; }
+    .fri-high { color:#e74c3c; font-weight:700; }
+    .fri-med { color:#e67e22; font-weight:700; }
+    .fri-low { color:#27ae60; font-weight:700; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal.open { display:flex; }
+    .modal-box { background:white; border-radius:12px; padding:28px; width:420px; max-width:90vw; }
+    .modal-box h3 { margin-bottom:20px; color:#1a3a1a; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; margin-bottom:6px; font-size:0.9rem; font-weight:500; }
+    .form-group input, .form-group select { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand"><h2>&#127795; Forest Monitor</h2></div>
+    <nav>
+      <a href="dashboard.html">&#128202; Dashboard</a>
+      <a href="zones.html">&#127966; Forest Zones</a>
+      <a href="sensors.html" class="active">&#128268; Sensors</a>
+      <a href="alerts.html">&#128680; Alerts</a>
+      <a href="user-management.html" id="navUsers" style="display:none">&#128100; Users</a>
+    </nav>
+    <div class="logout"><button onclick="logout()">&#8594; Logout</button></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h1>&#128268; Sensors</h1>
+      <button class="btn btn-primary" id="btnAdd" onclick="openModal()">+ Add Sensor</button>
+    </div>
+    <div class="card">
+      <h2>All Sensors</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Zone</th><th>Status</th><th>Latest Reading</th><th id="actHead"></th></tr></thead>
+        <tbody id="sensorsTable"><tr><td colspan="6" style="text-align:center;color:#aaa">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal" id="sensorModal">
+    <div class="modal-box">
+      <h3>Add Sensor</h3>
+      <div class="form-group"><label>Sensor Name</label><input id="fName" placeholder="e.g. Sensor-NP-002"></div>
+      <div class="form-group"><label>Sensor Type</label>
+        <select id="fType"><option>Multi-Environmental</option><option>Fire-Risk</option><option>Temperature</option><option>Humidity</option><option>Wind</option></select>
+      </div>
+      <div class="form-group"><label>Zone</label>
+        <select id="fZone"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSensor()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('forestToken');
+    const role = localStorage.getItem('forestRole');
+    if (!token) window.location.href = '/login.html';
+    if (role === 'ADMIN' || role === 'SUPERADMIN') document.getElementById('navUsers').style.display = 'block';
+    if (role !== 'ADMIN' && role !== 'SUPERADMIN') document.getElementById('btnAdd').style.display = 'none';
+    if (role === 'ADMIN' || role === 'SUPERADMIN') document.getElementById('actHead').textContent = 'Actions';
+
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    let zones = [];
+
+    async function loadSensors() {
+      const [sensorsRes, readingsRes, zonesRes] = await Promise.all([
+        fetch('/api/forest/sensors', {headers}),
+        fetch('/api/forest/readings', {headers}),
+        fetch('/api/forest/zones', {headers})
+      ]);
+      const sensors = await sensorsRes.json();
+      const readings = await readingsRes.json();
+      zones = await zonesRes.json();
+
+      const tb = document.getElementById('sensorsTable');
+      if (!sensors.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa">No sensors found.</td></tr>'; return; }
+
+      tb.innerHTML = sensors.map(s => {
+        const latest = readings.filter(r => r.sensor?.id === s.id).pop();
+        const fri = latest?.fireRiskIndex || 0;
+        const friClass = fri >= 75 ? 'fri-high' : fri >= 25 ? 'fri-med' : 'fri-low';
+        const latestHtml = latest ? `
+          <div class="reading-detail">
+            <span class="${friClass}">FRI: ${fri}</span> &bull;
+            Temp: ${latest.temperature}&deg;C &bull;
+            Hum: ${latest.humidity}% &bull;
+            Wind: ${latest.windSpeed} km/h
+          </div>` : '<span style="color:#aaa">No readings</span>';
+        return `<tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.sensorType}</td>
+          <td>${s.zone?.name || '-'}</td>
+          <td class="${s.active ? 'status-on' : 'status-off'}">${s.active ? 'Online' : 'Offline'}</td>
+          <td>${latestHtml}</td>
+          <td>${role === 'SUPERADMIN' ? `<button class="btn btn-danger" style="padding:6px 12px;font-size:0.8rem" onclick="deleteSensor(${s.id})">Delete</button>` : ''}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function openModal() {
+      const sel = document.getElementById('fZone');
+      sel.innerHTML = zones.map(z => `<option value="${z.id}">${z.name}</option>`).join('');
+      document.getElementById('sensorModal').classList.add('open');
+    }
+    function closeModal() { document.getElementById('sensorModal').classList.remove('open'); }
+
+    async function saveSensor() {
+      const zoneId = document.getElementById('fZone').value;
+      const zone = zones.find(z => z.id == zoneId);
+      const body = { name: document.getElementById('fName').value, sensorType: document.getElementById('fType').value, zone, active: true };
+      await fetch('/api/forest/sensors', {method:'POST', headers, body: JSON.stringify(body)});
+      closeModal();
+      loadSensors();
+    }
+
+    async function deleteSensor(id) {
+      if (!confirm('Delete this sensor?')) return;
+      await fetch(`/api/forest/sensors/${id}`, {method:'DELETE', headers});
+      loadSensors();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+    loadSensors();
+  </script>
+</body>
+</html>
