@@ -3,187 +3,119 @@
 <head>
   <meta charset="UTF-8">
   <title>Forest Monitor - Dashboard</title>
+  <script src="/js/lang.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Segoe UI',sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
-    .sidebar {
-      width:220px; background:linear-gradient(180deg,#1a3a1a,#2d5a27);
-      color:white; padding:20px 0; flex-shrink:0; position:fixed; height:100vh; overflow-y:auto;
-    }
+    body { font-family:'Segoe UI', sans-serif; background:#f0f4f0; display:flex; min-height:100vh; }
+    .sidebar { width:220px; background:linear-gradient(180deg,#1b4332,#2d6a4f); color:white; padding:20px 0; flex-shrink:0; }
     .sidebar .brand { padding:0 20px 20px; border-bottom:1px solid rgba(255,255,255,0.2); }
     .sidebar .brand h2 { font-size:1.1rem; }
-    .sidebar .brand p { font-size:0.75rem; opacity:0.7; margin-top:2px; }
-    .sidebar nav { padding:16px 0; }
-    .sidebar nav a {
-      display:block; padding:12px 20px; color:rgba(255,255,255,0.85);
-      text-decoration:none; font-size:0.9rem; transition:background 0.2s;
-    }
+    .sidebar nav a { display:block; padding:12px 20px; color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.9rem; transition:background 0.2s; }
     .sidebar nav a:hover, .sidebar nav a.active { background:rgba(255,255,255,0.15); color:white; }
-    .sidebar .logout { padding:20px; margin-top:auto; }
-    .sidebar .logout button {
-      width:100%; padding:10px; background:rgba(255,255,255,0.15);
-      color:white; border:1px solid rgba(255,255,255,0.3);
-      border-radius:6px; cursor:pointer; font-size:0.9rem;
-    }
-    .main { margin-left:220px; flex:1; padding:24px; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
-    .topbar h1 { color:#1a3a1a; font-size:1.5rem; }
-    .topbar .user-info { color:#555; font-size:0.9rem; }
-    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
-    .stat-card {
-      background:white; border-radius:12px; padding:20px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid;
-    }
-    .stat-card.green { border-color:#2d5a27; }
-    .stat-card.orange { border-color:#e67e22; }
-    .stat-card.red { border-color:#e74c3c; }
-    .stat-card.blue { border-color:#2980b9; }
-    .stat-card h3 { font-size:0.85rem; color:#666; text-transform:uppercase; letter-spacing:0.5px; }
-    .stat-card .value { font-size:2rem; font-weight:700; color:#1a3a1a; margin:8px 0 4px; }
-    .stat-card .sub { font-size:0.8rem; color:#888; }
+    .main { flex:1; display:flex; flex-direction:column; }
+    .topbar { background:white; padding:15px 25px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+    .topbar h1 { font-size:1.2rem; color:#1b4332; }
+    .topbar-right { display:flex; gap:10px; align-items:center; }
+    .lang-btn { background:#e8f5e9; border:1px solid #2d6a4f; color:#1b4332; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem; }
+    .logout-btn { background:#c0392b; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:0.85rem; }
+    .content { padding:25px; flex:1; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; margin-bottom:30px; }
+    .stat-card { background:white; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.07); text-align:center; }
+    .stat-card .number { font-size:2rem; font-weight:700; color:#2d6a4f; }
+    .stat-card .label { font-size:0.85rem; color:#666; margin-top:5px; }
     .panels { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-    .panel { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-    .panel h2 { color:#1a3a1a; margin-bottom:16px; font-size:1.1rem; border-bottom:2px solid #e8f5e9; padding-bottom:8px; }
-    .alert-item {
-      padding:12px; border-radius:8px; margin-bottom:8px;
-      background:#fff3f3; border-left:3px solid #e74c3c;
-    }
-    .alert-item.resolved { background:#f0fff4; border-color:#27ae60; opacity:0.7; }
-    .alert-item .alert-msg { font-size:0.9rem; color:#333; }
-    .alert-item .alert-meta { font-size:0.75rem; color:#888; margin-top:4px; }
-    .reading-item { padding:10px 0; border-bottom:1px solid #f0f0f0; }
-    .reading-item:last-child { border:none; }
-    .reading-sensor { font-weight:600; color:#2d5a27; font-size:0.85rem; }
-    .reading-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
-    .reading-val { font-size:0.8rem; color:#555; background:#f8f8f8; padding:4px 8px; border-radius:4px; }
-    .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600; }
-    .badge.high { background:#fee; color:#c00; }
-    .badge.medium { background:#fff3cd; color:#856404; }
-    .badge.low { background:#d4edda; color:#155724; }
-    @media(max-width:768px) { .panels { grid-template-columns:1fr; } }
+    .panel { background:white; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+    .panel h3 { margin-bottom:15px; color:#1b4332; font-size:1rem; }
+    .alert-item { padding:10px; border-left:4px solid #e74c3c; background:#fdf0f0; border-radius:4px; margin-bottom:8px; font-size:0.85rem; }
+    .reading-item { padding:8px 10px; border-bottom:1px solid #f0f0f0; font-size:0.85rem; color:#444; }
   </style>
 </head>
 <body>
-  <div class="sidebar">
-    <div class="brand">
-      <h2>&#127795; Forest Monitor</h2>
-      <p>Environmental Monitoring</p>
-    </div>
-    <nav>
-      <a href="dashboard.html" class="active">&#128202; Dashboard</a>
-      <a href="zones.html">&#127966; Forest Zones</a>
-      <a href="sensors.html">&#128268; Sensors</a>
-      <a href="alerts.html">&#128680; Alerts</a>
-      <a href="user-management.html" id="navUsers" style="display:none">&#128100; Users</a>
-    </nav>
-    <div class="logout">
-      <button onclick="logout()">&#8594; Logout</button>
+<div class="sidebar">
+  <div class="brand"><h2>🌲 Forest Monitor</h2></div>
+  <nav>
+    <a href="dashboard.html" class="active" data-i18n="nav_dashboard">Dashboard</a>
+    <a href="zones.html" data-i18n="nav_zones">Zones</a>
+    <a href="sensors.html" data-i18n="nav_sensors">Sensors</a>
+    <a href="alerts.html" data-i18n="nav_alerts">Alerts</a>
+    <a href="user-management.html" id="userMgmtLink" style="display:none" data-i18n="nav_users">Users</a>
+  </nav>
+</div>
+<div class="main">
+  <div class="topbar">
+    <h1 data-i18n="dashboard_title">Dashboard Overview</h1>
+    <div class="topbar-right">
+      <button class="lang-btn" onclick="toggleLang()">🌐 EN/LV</button>
+      <span id="userInfo" style="font-size:0.85rem;color:#555"></span>
+      <button class="logout-btn" onclick="logout()" data-i18n="logout">Logout</button>
     </div>
   </div>
-  <div class="main">
-    <div class="topbar">
-      <h1>Dashboard Overview</h1>
-      <div class="user-info">Logged in as: <strong id="usernameDisplay"></strong> (<span id="roleDisplay"></span>)</div>
-    </div>
+  <div class="content">
     <div class="stats-grid">
-      <div class="stat-card green">
-        <h3>Forest Zones</h3>
-        <div class="value" id="statZones">-</div>
-        <div class="sub">Monitored areas</div>
-      </div>
-      <div class="stat-card blue">
-        <h3>Active Sensors</h3>
-        <div class="value" id="statSensors">-</div>
-        <div class="sub">Online sensors</div>
-      </div>
-      <div class="stat-card red">
-        <h3>Active Alerts</h3>
-        <div class="value" id="statAlerts">-</div>
-        <div class="sub">Unresolved alerts</div>
-      </div>
-      <div class="stat-card orange">
-        <h3>Total Readings</h3>
-        <div class="value" id="statReadings">-</div>
-        <div class="sub">Sensor readings logged</div>
-      </div>
+      <div class="stat-card"><div class="number" id="statZones">-</div><div class="label" data-i18n="stat_zones">Zones</div></div>
+      <div class="stat-card"><div class="number" id="statSensors">-</div><div class="label" data-i18n="stat_sensors">Sensors</div></div>
+      <div class="stat-card"><div class="number" id="statAlerts">-</div><div class="label" data-i18n="stat_alerts">Unresolved Alerts</div></div>
+      <div class="stat-card"><div class="number" id="statReadings">-</div><div class="label" data-i18n="stat_readings">Readings Today</div></div>
     </div>
     <div class="panels">
       <div class="panel">
-        <h2>&#128680; Recent Alerts</h2>
-        <div id="alertsList"><p style="color:#aaa">Loading...</p></div>
+        <h3 data-i18n="recent_alerts">Recent Alerts</h3>
+        <div id="alertsList"></div>
       </div>
       <div class="panel">
-        <h2>&#128268; Latest Sensor Readings</h2>
-        <div id="readingsList"><p style="color:#aaa">Loading...</p></div>
+        <h3 data-i18n="latest_readings">Latest Readings</h3>
+        <div id="readingsList"></div>
       </div>
     </div>
   </div>
-  <script>
-    const token = localStorage.getItem('forestToken');
-    const role = localStorage.getItem('forestRole');
-    if (!token) window.location.href = '/login.html';
+</div>
+<script>
+  const token = localStorage.getItem('forestToken');
+  const role = localStorage.getItem('forestRole');
+  if (!token) { window.location.href = 'login.html'; }
+  if (role === 'SUPERADMIN' || role === 'ADMIN') {
+    document.getElementById('userMgmtLink').style.display = 'block';
+  }
+  fetch('/api/users/me', { headers:{ Authorization:'Bearer '+token } })
+    .then(r => { if (!r.ok) { localStorage.clear(); window.location.href='login.html'; } return r.json(); })
+    .then(u => { document.getElementById('userInfo').textContent = u.username + ' ('+u.role+')'; })
+    .catch(() => { localStorage.clear(); window.location.href='login.html'; });
 
-    document.getElementById('usernameDisplay').textContent = localStorage.getItem('forestUser') || '';
-    document.getElementById('roleDisplay').textContent = role || '';
-    if (role === 'ADMIN' || role === 'SUPERADMIN') {
-      document.getElementById('navUsers').style.display = 'block';
-    }
+  async function loadDashboard() {
+    try {
+      const h = { Authorization:'Bearer '+token };
+      const [zones, sensors, alerts, readings] = await Promise.all([
+        fetch('/api/forest/zones', {headers:h}).then(r=>r.json()),
+        fetch('/api/forest/sensors', {headers:h}).then(r=>r.json()),
+        fetch('/api/forest/alerts/unresolved', {headers:h}).then(r=>r.json()),
+        fetch('/api/forest/readings', {headers:h}).then(r=>r.json())
+      ]);
+      document.getElementById('statZones').textContent = zones.length;
+      document.getElementById('statSensors').textContent = sensors.length;
+      document.getElementById('statAlerts').textContent = alerts.length;
+      document.getElementById('statReadings').textContent = readings.length;
 
-    const headers = { 'Authorization': 'Bearer ' + token };
+      const al = document.getElementById('alertsList');
+      if (alerts.length === 0) { al.innerHTML = '<p style="color:#888;font-size:0.85rem">'+t('no_alerts')+'</p>'; }
+      else { al.innerHTML = alerts.slice(0,5).map(a=>`<div class="alert-item">${a.message} <br><small>${a.zone?.name||''}</small></div>`).join(''); }
 
-    async function loadDashboard() {
-      try {
-        const [zones, sensors, alerts, readings] = await Promise.all([
-          fetch('/api/forest/zones', {headers}).then(r => r.json()),
-          fetch('/api/forest/sensors', {headers}).then(r => r.json()),
-          fetch('/api/forest/alerts/unresolved', {headers}).then(r => r.json()),
-          fetch('/api/forest/readings', {headers}).then(r => r.json())
-        ]);
-        document.getElementById('statZones').textContent = zones.length;
-        document.getElementById('statSensors').textContent = sensors.filter(s => s.active).length;
-        document.getElementById('statAlerts').textContent = alerts.length;
-        document.getElementById('statReadings').textContent = readings.length;
+      const rl = document.getElementById('readingsList');
+      const latest = readings.slice(-5).reverse();
+      if (latest.length === 0) { rl.innerHTML = '<p style="color:#888;font-size:0.85rem">'+t('no_readings')+'</p>'; }
+      else { rl.innerHTML = latest.map(r=>`<div class="reading-item">${r.sensor?.name||'Sensor'}: <b>${r.value} ${r.unit||''}</b> <small style="float:right;color:#aaa">${new Date(r.timestamp).toLocaleTimeString()}</small></div>`).join(''); }
+    } catch(e) { console.error(e); }
+  }
 
-        // Recent alerts
-        const al = document.getElementById('alertsList');
-        if (alerts.length === 0) { al.innerHTML = '<p style="color:#888">No active alerts.</p>'; }
-        else {
-          al.innerHTML = alerts.slice(0,5).map(a => `
-            <div class="alert-item">
-              <div class="alert-msg">${a.message}</div>
-              <div class="alert-meta">Zone: ${a.zone?.name || 'N/A'} &bull; ${new Date(a.timestamp).toLocaleString()}</div>
-            </div>`).join('');
-        }
+  function logout() { localStorage.clear(); window.location.href='login.html'; }
 
-        // Latest readings
-        const rl = document.getElementById('readingsList');
-        const latest = readings.slice(-5).reverse();
-        if (latest.length === 0) { rl.innerHTML = '<p style="color:#888">No readings yet.</p>'; }
-        else {
-          rl.innerHTML = latest.map(r => {
-            const fri = r.fireRiskIndex || 0;
-            const badge = fri >= 75 ? 'high' : fri >= 25 ? 'medium' : 'low';
-            return `<div class="reading-item">
-              <div class="reading-sensor">${r.sensor?.name || 'Unknown'} <span class="badge ${badge}">FRI: ${fri}</span></div>
-              <div class="reading-grid">
-                <div class="reading-val">Temp: ${r.temperature}°C</div>
-                <div class="reading-val">Hum: ${r.humidity}%</div>
-                <div class="reading-val">Wind: ${r.windSpeed} km/h</div>
-              </div>
-            </div>`;
-          }).join('');
-        }
-      } catch(e) {
-        console.error(e);
-      }
-    }
+  function toggleLang() {
+    const cur = localStorage.getItem('lang') || 'en';
+    localStorage.setItem('lang', cur === 'en' ? 'lv' : 'en');
+    applyTranslations();
+  }
 
-    function logout() {
-      localStorage.clear();
-      window.location.href = '/login.html';
-    }
-
-    loadDashboard();
-  </script>
+  loadDashboard();
+  applyTranslations();
+</script>
 </body>
 </html>
